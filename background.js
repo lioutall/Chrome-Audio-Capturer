@@ -163,7 +163,7 @@ class Recorder {
 
 }
 
-const audioCapture = (timeLimit, muteTab, format, quality, limitRemoved) => {
+const audioCapture = (timeLimit, muteTab, format, quality, limitRemoved, saveFile) => {
   chrome.tabCapture.capture({audio: true}, (stream) => { // sets up stream for capture
     let startTabId; //tab when the capture is started
     let timeout;
@@ -187,11 +187,13 @@ const audioCapture = (timeLimit, muteTab, format, quality, limitRemoved) => {
 
     function onStopCommand(command) { //keypress
       if (command === "stop") {
+        alert("stop")
         stopCapture();
       }
     }
     function onStopClick(request) { //click on popup
       if(request === "stopCapture") {
+        alert("stopCapture")
         stopCapture();
       } else if (request === "cancelCapture") {
         cancelCapture();
@@ -206,7 +208,7 @@ const audioCapture = (timeLimit, muteTab, format, quality, limitRemoved) => {
     mediaRecorder.onComplete = (recorder, blob) => {
       audioURL = window.URL.createObjectURL(blob);
       if(completeTabID) {
-        chrome.tabs.sendMessage(completeTabID, {type: "encodingComplete", audioURL});
+        chrome.tabs.sendMessage(completeTabID, {type: "encodingComplete", audioURL: audioURL, saveFile: saveFile, completeTabID: completeTabID});
       }
       mediaRecorder = null;
     }
@@ -221,12 +223,12 @@ const audioCapture = (timeLimit, muteTab, format, quality, limitRemoved) => {
       //check to make sure the current tab is the tab being captured
       chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
         endTabId = tabs[0].id;
-        if(mediaRecorder && startTabId === endTabId){
+        if(mediaRecorder /*&& startTabId === endTabId*/){
           mediaRecorder.finishRecording();
           chrome.tabs.create({url: "complete.html"}, (tab) => {
             completeTabID = tab.id;
             let completeCallback = () => {
-              chrome.tabs.sendMessage(tab.id, {type: "createTab", format: format, audioURL, startID: startTabId});
+              chrome.tabs.sendMessage(tab.id, {type: "createTab", format: format, audioURL, startID: startTabId, saveFile: saveFile, completeTabID: completeTabID});
             }
             setTimeout(completeCallback, 500);
           });
@@ -239,9 +241,9 @@ const audioCapture = (timeLimit, muteTab, format, quality, limitRemoved) => {
       let endTabId;
       chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
         endTabId = tabs[0].id;
-        if(mediaRecorder && startTabId === endTabId){
+        if(mediaRecorder /*&& startTabId === endTabId*/){
           mediaRecorder.cancelRecording();
-          closeStream(endTabId);
+          closeStream(startTabId);
         }
       })
     }
@@ -277,6 +279,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(false);
   } else if (request === "startCapture") {
     startCapture();
+  } else if (request.startsWith("captureFlow")) {
+    var n=request.split(",");
+    captureFlow(n[1], n[2]);
   }
 });
 
@@ -300,6 +305,29 @@ const startCapture = function() {
             time = 1200000
           }
           audioCapture(time, options.muteTab, options.format, options.quality, options.limitRemoved);
+        });
+        chrome.runtime.sendMessage({captureStarted: tabs[0].id, startTime: Date.now()});
+      }
+    // }
+  });
+};
+
+const captureFlow = function(autoStopSeconds, saveFile) {
+  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+    // CODE TO BLOCK CAPTURE ON YOUTUBE, DO NOT REMOVE
+    // if(tabs[0].url.toLowerCase().includes("youtube")) {
+    //   chrome.tabs.create({url: "error.html"});
+    // } else {
+      if(!sessionStorage.getItem(tabs[0].id)) {
+        sessionStorage.setItem(tabs[0].id, Date.now());
+        chrome.storage.sync.get({
+          maxTime: 1200000,
+          muteTab: false,
+          format: "mp3",
+          quality: 192,
+          limitRemoved: false
+        }, (options) => {
+          audioCapture(autoStopSeconds * 1000, options.muteTab, options.format, options.quality, options.limitRemoved, saveFile);
         });
         chrome.runtime.sendMessage({captureStarted: tabs[0].id, startTime: Date.now()});
       }

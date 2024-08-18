@@ -8,6 +8,7 @@ const displayStatus = function() { //function to handle the display of time and 
     const startButton = document.getElementById('start');
     const finishButton = document.getElementById('finish');
     const cancelButton = document.getElementById('cancel');
+    const captureFlow = document.getElementById('captureFlow');
     //CODE TO BLOCK CAPTURE ON YOUTUBE, DO NOT DELETE
     // if(tabs[0].url.toLowerCase().includes("youtube")) {
     //   status.innerHTML = "Capture is disabled on this site due to copyright";
@@ -44,6 +45,7 @@ const displayStatus = function() { //function to handle the display of time and 
           cancelButton.style.display = "block";
         } else {
           startButton.style.display = "block";
+          captureFlow.style.display = "block";
         }
       });
     // }
@@ -75,6 +77,9 @@ chrome.runtime.onMessage.addListener((request, sender) => {
     const startButton = document.getElementById('start');
     const finishButton = document.getElementById('finish');
     const cancelButton = document.getElementById('cancel');
+
+    const captureFlow = document.getElementById('captureFlow');
+
     if(request.captureStarted && request.captureStarted === tabs[0].id) {
       chrome.storage.sync.get({
         maxTime: 1200000,
@@ -105,11 +110,14 @@ chrome.runtime.onMessage.addListener((request, sender) => {
       finishButton.style.display = "block";
       cancelButton.style.display = "block";
       startButton.style.display = "none";
+      captureFlow.style.display = "none";
     } else if(request.captureStopped && request.captureStopped === tabs[0].id) {
       status.innerHTML = "";
       finishButton.style.display = "none";
       cancelButton.style.display = "none";
       startButton.style.display = "block";
+      captureFlow.style.display = "block";
+
       timeRem.innerHTML = "";
       clearInterval(interval);
     }
@@ -125,9 +133,17 @@ document.addEventListener('DOMContentLoaded', function() {
   const startButton = document.getElementById('start');
   const finishButton = document.getElementById('finish');
   const cancelButton = document.getElementById('cancel');
+
+  const captureFlow = document.getElementById('captureFlow');
+  const autoStopSeconds = document.getElementById('autoStopSeconds');
+  const saveFile = document.getElementById('saveFile');
+
   startButton.onclick = () => {chrome.runtime.sendMessage("startCapture")};
   finishButton.onclick = () => {chrome.runtime.sendMessage("stopCapture")};
   cancelButton.onclick = () => {chrome.runtime.sendMessage("cancelCapture")};
+
+  captureFlow.onclick = () => {chrome.runtime.sendMessage("captureFlow" + "," + autoStopSeconds.value + "," + saveFile.value)};
+
   chrome.runtime.getPlatformInfo((info) => {
     if(info.os === "mac") {
       startKey.innerHTML = "Command + Shift + U to start capture on current tab";

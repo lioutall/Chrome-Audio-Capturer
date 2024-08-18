@@ -23,7 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if(request.audioURL) {
         encodeProgress.style.width = '100%';
         status.innerHTML = "File is ready!"
-        generateSave(request.audioURL);
+        if(request.saveFile){
+          autoSave(request.audioURL, request.saveFile, request.completeTabID)
+        } else {
+          generateSave(request.audioURL);
+        }
       } else {
         encoding = true;
       }
@@ -34,7 +38,12 @@ document.addEventListener('DOMContentLoaded', () => {
       encoding = false;
       status.innerHTML = "File is ready!";
       encodeProgress.style.width = '100%';
-      generateSave(request.audioURL);
+
+      if(request.saveFile){
+        autoSave(request.audioURL, request.saveFile, request.completeTabID)
+      } else {
+        generateSave(request.audioURL);
+      }      
     }
     //updates encoding process bar upon messages
     if(request.type === "encodingProgress" && encoding) {
@@ -46,6 +55,13 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.downloads.download({url: url, filename: `${currentDate}.${format}`, saveAs: true});
       };
       saveButton.style.display = "inline-block";
+    }
+
+    function autoSave(url, filename, completeTabID) { //creates the save button
+      let finalName = filename+"."+format;
+      chrome.downloads.download({url: url, filename: finalName, saveAs: false},function(dlID){/*alert("downloadID: " + dlID);*/});
+      
+      setTimeout(chrome.tabs.remove(completeTabID), 5000);
     }
   });
   review.onclick = () => {
